@@ -19,8 +19,8 @@ from ema_workbench import (
 
 # -------------------------------------- Read data and initiate a plant ----------------------------------
 plants_df = pd.read_csv("plant_data_all.csv",delimiter=";")
-plants_df = plants_df.iloc[0].to_frame().T # This row makes us only iterate over the 1st plant
-# plants_df = plants_df.iloc[:3] # This row makes us only iterate over the 4 first plant
+# plants_df = plants_df.iloc[0].to_frame().T # This row makes us only iterate over the 1st plant
+plants_df = plants_df.iloc[7:10] # This row makes us only iterate over the 4 first plant
 all_experiments = pd.DataFrame()
 all_outcomes = pd.DataFrame()
 
@@ -90,8 +90,8 @@ for index, plant_data in plants_df.iterrows():
     ]
 
     ema_logging.log_to_stderr(ema_logging.INFO)
-    n_scenarios = 30
-    n_policies = 10
+    n_scenarios = 60
+    n_policies = 20
 
     results = perform_experiments(model, n_scenarios, n_policies, uncertainty_sampling = Samplers.LHS, lever_sampling = Samplers.LHS)
     experiments, outcomes = results
@@ -126,5 +126,14 @@ for index, plant_data in plants_df.iterrows():
     plant_outcomes["tax"] = experiments["tax"]
     # sns.pairplot(plant_outcomes, hue="time", vars=list(outcomes.keys())) # This plots ALL outcomes
     sns.pairplot(plant_outcomes, hue="tax", vars=["eta","NPV"])
+
+    # Create scatter plot with color-coded points
+    colors = np.where(plant_outcomes["NPV"] > 0, 'green', 'red')
+    plt.figure(figsize=(8, 5))
+    plt.scatter(experiments["tax"], plant_outcomes["NPV"] / 10**6, c=colors, label="NPV (€ million) and tax (EUR/kgC)")
+    plt.xlabel("CCS subsidy per kg of plastic incinerated [EUR/kgC]")
+    plt.ylabel("NPV [€ million]")
+    plt.title(f"CCS retrofit at {CHP.name} ({round(CHP.Qfuel,0)} MW fuel)")
+    plt.axhline(0, color='black', linestyle='--', linewidth=1)  # Optional: Add a reference line at NPV = 0
 
 plt.show()

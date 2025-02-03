@@ -58,8 +58,9 @@ def create_interpolators(aspen_df):
     return aspen_interpolators
 
 class WASTE_PLANT:
-    def __init__(self, name, Qdh, P, Qfgc, Tsteam, psteam):
+    def __init__(self, name, fuel, Qdh, P, Qfgc, Tsteam, psteam):
         self.name = name
+        self.fuel = fuel
         self.Qfuel = None
         self.Qdh = Qdh
         self.P = P
@@ -121,8 +122,8 @@ class WASTE_PLANT:
         duration_increase = self.technology_assumptions["duration_increase"]
 
         self.results["Qextra"] = self.Qfuel*duration_increase #[MWh/yr]
+        self.results["C_fuel"] = C_fuel*3600/1000 *(duration+duration_increase) /1000                                   #[ktC/yr]
         self.gases = {
-            "C_fuel": C_fuel,
             "nominal_emissions": m_CO2*3600/1000 *(duration) /1000,
             "boiler_emissions": m_CO2*3600/1000 *(duration+duration_increase) /1000,                                    #[ktCO2/yr]
             "captured_emissions": m_CO2*3600/1000 *(duration+duration_increase) /1000*self.technology_assumptions["rate"],   
@@ -313,28 +314,72 @@ class WASTE_PLANT:
             raise ValueError("Infeasible heat exchange")
         return (self.Qdh+self.Qfgc), self.P, self.Qfuel
 
+    def estimate_CAPEX(self, escalate=True):
+        X = self.economic_assumptions
 
-    def future_scenarios(self, assumptions):
-        h = assumptions["time"]
-        mplastic = 5678 # this should include plastics scenarios! Of what fractions are treated in W2E! Increasing vs decreasing plastic volumes/shares compared to biogenic
-        CAPEX = 100000
-        NPV = -CAPEX
-        for t in range(0,5):
+        # Estimating base cost of capture plant
+        CAPEX = X['alpha'] * (self.gases["V_fluegas"])**X['beta']   #[MEUR](Eliasson, 2022)
+        CAPEX *= X['CEPCI'] *1000                                   #[kEUR]
 
-            electricity_revenue = 6 * h #NOTE: we could remove the CCS electricity tax-deduction for W2E if they have EPR policy, granting some revenues to government?
-            heat_revenue = 4 * h
-            carbon_revenue = 3 * mplastic # no reversed auction, only EPR policy incentive assumed!
+        # Adding cost of HEXs (+~1% cost) and HP (+~21% cost)
+        Qhex = self.results["Qrecovered"] - self.results["Qhp"]     #[MW]
+        U = self.technology_assumptions["U"] /1000                  #[kW/m2K]
+        A = Qhex*1000/(U * self.technology_assumptions["dTmin"])    # This overestimates the area as dTmin<dTln so it is pessimistic costwise
+        CAPEX_hex = X["cHEX"]*A**0.9145                             #[kEUR] Original val: 0.571 (Eliasson, 2022)
+        CAPEX += CAPEX_hex
+
+        if self.technology_assumptions["heat_pump"]:
+            Qhp = self.results["Qhp"]
+            CAPEX_hp = X["cHP"]*1000 * Qhp                          #[kEUR], probably represents 2-4 pumps
+            CAPEX += CAPEX_hp  
+
+        if escalate:
+            CAPEX *= 1 + X['ownercost']
+            escalation = sum((1 + X['rescalation']) ** (n - 1) * (1 / X['yexpenses']) for n in range(1, X['yexpenses'] + 1)) # equals ~1.03
+            cfunding = sum(X['WACC'] * (X['yexpenses'] - n + 1) * (1 + X['rescalation']) ** (n - 1) * (1 / X['yexpenses']) for n in range(1, X['yexpenses'] + 1)) # equals ~0.10
+            CAPEX *= escalation + cfunding     
+        fixed_OPEX = X['fixed'] * CAPEX 
+
+        annualization = (X['i'] * (1 + X['i']) ** X['t']) / ((1 + X['i']) ** X['t'] - 1)
+        aCAPEX = annualization * CAPEX   
+
+        self.results["CAPEX"] = CAPEX           #[kEUR]    
+        self.results["aCAPEX"] = aCAPEX         #[kEUR/yr]
+        self.results["fixed_OPEX"] = fixed_OPEX #[kEUR/yr]
+        return                       
+
+    def future_scenarios(self):
+        # I should save the cash flows to be able to print these! Call the array "cash"
+        h = self.economic_assumptions["time"]
+        mC = self.results["C_fuel"] * 0.50  #[ktC/yr] NOTE: should include scenarios of plastic fractions evolving!
+
+        cashflow = []
+        cashflow.append(-self.results["CAPEX"]*1000)   #[EUR]
+
+        for n in range(0, self.economic_assumptions["t"]):
+            electricity_revenue = - self.results["Plost"]* h * self.economic_assumptions["celc"] #[EUR/yr]
+            heat_revenue =        - self.results["Qlost"]* h * self.economic_assumptions["cheat"]*self.economic_assumptions["celc"]
+            carbon_revenue = mC*1000 * self.economic_assumptions["tax"]*1000                     #[EUR/yr]
+            carbon_revenue += self.economic_assumptions["cETS"] * self.gases["captured_emissions"]*1000 *0.50 #[EUR/yr] NOTE: half is avoided fossil CO2
             revenues = electricity_revenue + heat_revenue + carbon_revenue
 
-            transport_cost = 1000
-            storage_cost = 2000
-            auxiliary_costs = 150 # maybe two contingency scenario? of energy crises (elc prices)
+            transport_cost = self.economic_assumptions["ctrans"] * self.gases["captured_emissions"]*1000 #[EUR/yr]
+            storage_cost   = self.economic_assumptions["cstore"] * self.gases["captured_emissions"]*1000 #[EUR/yr]
+            auxiliary_costs = self.results["fixed_OPEX"]*1000
             costs = transport_cost + storage_cost + auxiliary_costs
 
-            NPV += (revenues - costs)*0.78
-            print("NPV =", NPV)
+            cashflow.append( (revenues - costs)/(1 + self.economic_assumptions["i"])**n )
+            
+        NPV = sum(cashflow)
 
-        return NPV
+        # Ensures cash array is always of the expected length
+        length = 31
+        if len(cashflow) < length:
+            cashflow = np.pad(cashflow, (0, length - len(cashflow)), mode='constant', constant_values=np.nan)
+        elif len(cashflow) > length:
+            cashflow = cashflow[:length]
+            
+        return NPV, cashflow
 
     def print_energybalance(self):
         print(f"\n{'Heat output (Qdh)':<20}: {self.Qdh} MWheat")
@@ -382,7 +427,7 @@ class WASTE_PLANT:
     def reset(self):
         self.__dict__.update(copy.deepcopy(self.nominal_state)) # Resets to the nominal state values
 
-# here I create a main model function, which relies on the helper functions:
+# Here I create a main model function, which relies on the helper functions:
 def WACCS_EPR( 
     dTreb=10,
     Tsupp=86,
@@ -401,16 +446,20 @@ def WACCS_EPR(
     rescalation=0.03,
     i=0.075,
     t=25,
+
     celc=40,
     cheat=0.80,
     cbio=99999999,
     cMEA=2,
     cHP=0.86,
     cHEX=0.571,
+    cETS=70,
+    ctrans=30,
+    cstore=60,
 
     time= 8000,
     rate = 0.90,
-    tax = 1,
+    tax = 1, #EUR/kgC
     CHP = None,
     interpolators = None
 ):
@@ -430,22 +479,26 @@ def WACCS_EPR(
 
     CHP.economic_assumptions = {
         'time': time,
-        # 'alpha': alpha,
-        # 'beta': beta,
-        # 'CEPCI': CEPCI,
-        # 'fixed': fixed,
-        # 'ownercost': ownercost,
-        # 'WACC': WACC,
-        # 'yexpenses': yexpenses,
-        # 'rescalation': rescalation,
-        # 'i': i,
-        # 't': t,
-        # 'celc': celc,
-        # 'cheat': cheat,
-        # 'cbio': cbio,
-        # 'cMEA': cMEA,
-        # 'cHP': cHP,
-        # 'cHEX' : cHEX
+        'alpha': alpha,
+        'beta': beta,
+        'CEPCI': CEPCI,
+        'fixed': fixed,
+        'ownercost': ownercost,
+        'WACC': WACC,
+        'yexpenses': yexpenses,
+        'rescalation': rescalation,
+        'i': i,
+        't': t,
+        'celc': celc,
+        'cheat': cheat,
+        'cbio': cbio,
+        'cMEA': cMEA,
+        'cHP': cHP,
+        'cHEX' : cHEX,
+        'cETS' : cETS,
+        'ctrans' : ctrans,
+        'cstore' : cstore,
+        'tax' : tax
     }
 
     # Size a capture plant and power it
@@ -458,9 +511,9 @@ def WACCS_EPR(
     CHP.merge_heat()
     energy_balance = CHP.recover_heat()
 
-    # # Calculate CAPEX and NPV
-    # CAPEX = CHP.CAPEX(escalate=True)
-    # NPV = CHP.future_scenarios()
+    # Calculate CAPEX and NPV
+    CHP.estimate_CAPEX(escalate=True)
+    NPV, cash = CHP.future_scenarios()
 
     # # Calculate product/waste cost increases for "this plant" (will be the same for all plants)
     # buildings += tax    # cost increase of insulation, carried by building companies
@@ -468,9 +521,10 @@ def WACCS_EPR(
     # tires += tax        # cost increase of tires, carried by consumers
     # imported += tax     # cost increase of imported waste, carried by exporters
     # mixed += tax        # cost increase of mixed waste (what product?), carried py public authorities (?)
+
     q, eta = CHP.results["qrecovered"], CHP.results["efficiency"]
     CHP.reset()
-    return q, eta
+    return q, eta, NPV, cash
 
 
 if __name__ == "__main__":
@@ -486,17 +540,25 @@ if __name__ == "__main__":
     # initate a CHP and calculate its nominal energy balance
     CHP = WASTE_PLANT(
         name=plant_data["Plant Name"],
+        fuel=plant_data["Fuel (W=waste, B=biomass)"],
         Qdh=plant_data["Heat output (MWheat)"],
         P=plant_data["Electric output (MWe)"],
         Qfgc=plant_data["Existing FGC heat output (MWheat)"],
         Tsteam=plant_data["Live steam temperature (degC)"],
         psteam=plant_data["Live steam pressure (bar)"],
     )
-
     CHP.estimate_nominal_cycle() 
 
     # the RDM evaluation starts below
-    q, eta = WACCS_EPR(CHP=CHP, interpolators=aspen_interpolators)
-    print(q, eta)
-    # NPV = WACCS_EPR(CHP=CHP, interpolators=aspen_interpolators)
-    # print("NPV =", NPV)
+    q, eta, NPV, cash = WACCS_EPR(CHP=CHP, interpolators=aspen_interpolators)
+
+    # plotting cash flows
+    time_steps = range(len(cash))  
+    plt.figure(figsize=(8, 5))
+    plt.plot(time_steps, cash, marker='o', linestyle='-', color='b', label="Cash Flow (€)")
+    plt.xlabel("Time Steps")
+    plt.ylabel("Cash (€)")
+    plt.title("Cash Flow Over Time")
+    plt.legend()
+    plt.grid(True)
+    plt.show()

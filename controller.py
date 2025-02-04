@@ -20,7 +20,7 @@ from ema_workbench import (
 # -------------------------------------- Read data and initiate a plant ----------------------------------
 plants_df = pd.read_csv("plant_data_all.csv",delimiter=";")
 # plants_df = plants_df.iloc[0].to_frame().T # This row makes us only iterate over the 1st plant
-plants_df = plants_df.iloc[7:10] # This row makes us only iterate over the 4 first plant
+plants_df = plants_df.iloc[7:9] # This row makes us only iterate over the 4 first plant
 all_experiments = pd.DataFrame()
 all_outcomes = pd.DataFrame()
 
@@ -51,6 +51,7 @@ for index, plant_data in plants_df.iterrows():
         RealParameter("dTmin", 5, 12),
         RealParameter("U", 1300, 1700),
         RealParameter("COP", 2.3, 3.8),
+        RealParameter("fossil", 0.3, 0.6),
 
         RealParameter("alpha", 6, 7),
         RealParameter("beta", 0.6, 0.7),
@@ -76,13 +77,16 @@ for index, plant_data in plants_df.iterrows():
     ]
     model.levers = [
         RealParameter("rate", 0.78, 0.94),
-        RealParameter("tax", 0.5, 1.5),
+        RealParameter("tax", 200, 500),
     ]
     model.outcomes = [
-        ScalarOutcome("q", ScalarOutcome.MAXIMIZE),
         ScalarOutcome("eta", ScalarOutcome.MAXIMIZE),
         ScalarOutcome("NPV", ScalarOutcome.MAXIMIZE),
-        ArrayOutcome("cash"),
+        ScalarOutcome("bag", ScalarOutcome.MINIMIZE),
+        ScalarOutcome("floor", ScalarOutcome.MINIMIZE),
+        ScalarOutcome("tires", ScalarOutcome.MINIMIZE),
+        ScalarOutcome("imported", ScalarOutcome.MINIMIZE),
+        # ArrayOutcome("cash"),
     ]
     model.constants = [
         Constant("interpolators", aspen_interpolators),
@@ -90,8 +94,8 @@ for index, plant_data in plants_df.iterrows():
     ]
 
     ema_logging.log_to_stderr(ema_logging.INFO)
-    n_scenarios = 60
-    n_policies = 20
+    n_scenarios = 30
+    n_policies = 10
 
     results = perform_experiments(model, n_scenarios, n_policies, uncertainty_sampling = Samplers.LHS, lever_sampling = Samplers.LHS)
     experiments, outcomes = results
@@ -124,14 +128,14 @@ for index, plant_data in plants_df.iterrows():
         print("Mismatch in the number of rows between plant_experiments and plant_outcomes.")
 
     plant_outcomes["tax"] = experiments["tax"]
-    # sns.pairplot(plant_outcomes, hue="time", vars=list(outcomes.keys())) # This plots ALL outcomes
-    sns.pairplot(plant_outcomes, hue="tax", vars=["eta","NPV"])
+    sns.pairplot(plant_outcomes, hue="tax", vars=list(outcomes.keys())) # This plots ALL outcomes
+    # sns.pairplot(plant_outcomes, hue="tax", vars=["eta","NPV"])
 
     # Create scatter plot with color-coded points
     colors = np.where(plant_outcomes["NPV"] > 0, 'green', 'red')
     plt.figure(figsize=(8, 5))
     plt.scatter(experiments["tax"], plant_outcomes["NPV"] / 10**6, c=colors, label="NPV (€ million) and tax (EUR/kgC)")
-    plt.xlabel("CCS subsidy per kg of plastic incinerated [EUR/kgC]")
+    plt.xlabel("CCS subsidy relative to CO2 in plastic incinerated [EUR/tCO2]")
     plt.ylabel("NPV [€ million]")
     plt.title(f"CCS retrofit at {CHP.name} ({round(CHP.Qfuel,0)} MW fuel)")
     plt.axhline(0, color='black', linestyle='--', linewidth=1)  # Optional: Add a reference line at NPV = 0

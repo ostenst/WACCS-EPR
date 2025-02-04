@@ -351,7 +351,7 @@ class WASTE_PLANT:
     def future_scenarios(self):
         # I should save the cash flows to be able to print these! Call the array "cash"
         h = self.economic_assumptions["time"]
-        mC = self.results["C_fuel"] * 0.50  #[ktC/yr] NOTE: should include scenarios of plastic fractions evolving!
+        mC = self.results["C_fuel"] * self.technology_assumptions["fossil"]  #[ktC/yr] NOTE: should include scenarios of plastic fractions evolving!
 
         cashflow = []
         cashflow.append(-self.results["CAPEX"]*1000)   #[EUR]
@@ -359,8 +359,8 @@ class WASTE_PLANT:
         for n in range(0, self.economic_assumptions["t"]):
             electricity_revenue = - self.results["Plost"]* h * self.economic_assumptions["celc"] #[EUR/yr]
             heat_revenue =        - self.results["Qlost"]* h * self.economic_assumptions["cheat"]*self.economic_assumptions["celc"]
-            carbon_revenue = mC*1000 * self.economic_assumptions["tax"]*1000                     #[EUR/yr]
-            carbon_revenue += self.economic_assumptions["cETS"] * self.gases["captured_emissions"]*1000 *0.50 #[EUR/yr] NOTE: half is avoided fossil CO2
+            carbon_revenue = mC*3.67*1000 * self.economic_assumptions["tax"]        
+            carbon_revenue += self.economic_assumptions["cETS"] * self.gases["captured_emissions"]*1000 * self.technology_assumptions["fossil"] #[EUR/yr] NOTE: half is avoided fossil CO2
             revenues = electricity_revenue + heat_revenue + carbon_revenue
 
             transport_cost = self.economic_assumptions["ctrans"] * self.gases["captured_emissions"]*1000 #[EUR/yr]
@@ -435,6 +435,7 @@ def WACCS_EPR(
     dTmin=7,
     COP = 3,
     U = 1500,
+    fossil = 0.5,
 
     alpha=6.12,
     beta=0.6336,
@@ -459,7 +460,7 @@ def WACCS_EPR(
 
     time= 8000,
     rate = 0.90,
-    tax = 1, #EUR/kgC
+    tax = 300, #EUR/tCO2
     CHP = None,
     interpolators = None
 ):
@@ -475,6 +476,7 @@ def WACCS_EPR(
         "Tlow": Tlow,
         "dTmin": dTmin,
         "COP": COP,
+        "fossil": fossil,
     }
 
     CHP.economic_assumptions = {
@@ -515,16 +517,16 @@ def WACCS_EPR(
     CHP.estimate_CAPEX(escalate=True)
     NPV, cash = CHP.future_scenarios()
 
-    # # Calculate product/waste cost increases for "this plant" (will be the same for all plants)
-    # buildings += tax    # cost increase of insulation, carried by building companies
-    # packaging += tax    # cost increase of plastic bag, carried by consumers 
-    # tires += tax        # cost increase of tires, carried by consumers
-    # imported += tax     # cost increase of imported waste, carried by exporters
-    # mixed += tax        # cost increase of mixed waste (what product?), carried py public authorities (?)
+    # Calculate product/waste cost increases for "this plant" (will be the same for all plants)
+    bag = (3.1415*10**-5 * tax) /0.3
+    floor = (0.00217998 * tax)  /50  
+    tires = (0.02889024 * tax)  /120     
+    imported = (0.734 * tax)    /55
+    # mixed = tax   # cost increase of mixed waste (what product?), carried py public authorities (?)
 
     q, eta = CHP.results["qrecovered"], CHP.results["efficiency"]
     CHP.reset()
-    return q, eta, NPV, cash
+    return eta, NPV, bag, floor, tires, imported, cash
 
 
 if __name__ == "__main__":
@@ -550,7 +552,39 @@ if __name__ == "__main__":
     CHP.estimate_nominal_cycle() 
 
     # the RDM evaluation starts below
-    q, eta, NPV, cash = WACCS_EPR(CHP=CHP, interpolators=aspen_interpolators)
+    eta, NPV, bag, floor, tires, imported, cash = WACCS_EPR(CHP=CHP, interpolators=aspen_interpolators)
+    outcomes = {
+        "eta": eta,
+        "NPV": NPV,
+        "bag": bag,
+        "floor": floor,
+        "tires": tires,
+        "imported": imported,
+        "cash": cash
+    }
+    for name, value in outcomes.items():
+        print(f"{name} = {value}")
+
+    # plotting here
+    categories = ["bag", "floor", "tires", "imported"]
+    values1 = [bag * 100, floor * 100, tires * 100]  # First y-axis (scaled)
+    values2 = [imported * 100]  # Second y-axis (scaled)
+    fig, ax1 = plt.subplots(figsize=(8, 5))
+
+    # X locations for bars
+    x = np.arange(len(categories))
+    bar_width = 0.6  
+    # First y-axis bars (bag, floor, tires)
+    ax1.bar(x[:-1], values1, width=bar_width, color=['blue', 'green', 'red'], label="Bag, Floor, Tires")
+    ax1.set_ylabel("Bag, Floor, Tires [%]", color='black')
+    # Create second y-axis for "imported"
+    ax2 = ax1.twinx()
+    ax2.bar(x[-1], values2, width=bar_width, color='purple', label="Imported")
+    ax2.set_ylabel("Imported [%]", color='black')
+    # Set x-ticks and labels
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(categories)
+    plt.title("Bar Plot with Dual Y-Axis (Scaled to %)")
 
     # plotting cash flows
     time_steps = range(len(cash))  

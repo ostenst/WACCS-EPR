@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pyXSteam.XSteam import XSteam
 from scipy.interpolate import LinearNDInterpolator
+import searoute as sr
 
 # Here I insert various helper functions:
 steamTable = XSteam(XSteam.UNIT_SYSTEM_MKS)
@@ -532,16 +533,16 @@ def WACCS_EPR(
 if __name__ == "__main__":
 
     # the main function resembles the controller
-    plants_df = pd.read_csv("plant_data.csv",delimiter=";")
+    plants_df = pd.read_csv("data/w2e_data.csv",delimiter=";")
     plant_data = plants_df.iloc[0]
     print(plant_data)
 
-    aspen_df = pd.read_csv("amine.csv", sep=";", decimal=',')
+    aspen_df = pd.read_csv("data/amine.csv", sep=";", decimal=',')
     aspen_interpolators = create_interpolators(aspen_df)
 
     # initate a CHP and calculate its nominal energy balance
     CHP = WASTE_PLANT(
-        name=plant_data["Plant Name"],
+        name=plant_data["Name"],
         fuel=plant_data["Fuel (W=waste, B=biomass)"],
         Qdh=plant_data["Heat output (MWheat)"],
         P=plant_data["Electric output (MWe)"],
@@ -566,33 +567,33 @@ if __name__ == "__main__":
         print(f"{name} = {value}")
 
     # plotting here
-    categories = ["bag", "floor", "tires", "imported"]
-    values1 = [bag * 100, floor * 100, tires * 100]  # First y-axis (scaled)
-    values2 = [imported * 100]  # Second y-axis (scaled)
-    fig, ax1 = plt.subplots(figsize=(8, 5))
+    # categories = ["bag", "floor", "tires", "imported"]
+    # values1 = [bag * 100, floor * 100, tires * 100]  # First y-axis (scaled)
+    # values2 = [imported * 100]  # Second y-axis (scaled)
+    # fig, ax1 = plt.subplots(figsize=(8, 5))
 
-    # X locations for bars
-    x = np.arange(len(categories))
-    bar_width = 0.6  
-    # First y-axis bars (bag, floor, tires)
-    ax1.bar(x[:-1], values1, width=bar_width, color=['blue', 'green', 'red'], label="Bag, Floor, Tires")
-    ax1.set_ylabel("Bag, Floor, Tires [%]", color='black')
-    # Create second y-axis for "imported"
-    ax2 = ax1.twinx()
-    ax2.bar(x[-1], values2, width=bar_width, color='purple', label="Imported")
-    ax2.set_ylabel("Imported [%]", color='black')
-    # Set x-ticks and labels
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(categories)
-    plt.title("Bar Plot with Dual Y-Axis (Scaled to %)")
+    # # X locations for bars
+    # x = np.arange(len(categories))
+    # bar_width = 0.6  
+    # # First y-axis bars (bag, floor, tires)
+    # ax1.bar(x[:-1], values1, width=bar_width, color=['blue', 'green', 'red'], label="Bag, Floor, Tires")
+    # ax1.set_ylabel("Bag, Floor, Tires [%]", color='black')
+    # # Create second y-axis for "imported"
+    # ax2 = ax1.twinx()
+    # ax2.bar(x[-1], values2, width=bar_width, color='purple', label="Imported")
+    # ax2.set_ylabel("Imported [%]", color='black')
+    # # Set x-ticks and labels
+    # ax1.set_xticks(x)
+    # ax1.set_xticklabels(categories)
+    # plt.title("Bar Plot with Dual Y-Axis (Scaled to %)")
 
-    # plotting cash flows
-    time_steps = range(len(cash))  
-    plt.figure(figsize=(8, 5))
-    plt.plot(time_steps, cash, marker='o', linestyle='-', color='b', label="Cash Flow (€)")
-    plt.xlabel("Time Steps")
-    plt.ylabel("Cash (€)")
-    plt.title("Cash Flow Over Time")
-    plt.legend()
-    plt.grid(True)
+    # # plotting cash flows
+    # time_steps = range(len(cash))  
+    # plt.figure(figsize=(8, 5))
+    # plt.plot(time_steps, cash, marker='o', linestyle='-', color='b', label="Cash Flow (€)")
+    # plt.xlabel("Time Steps")
+    # plt.ylabel("Cash (€)")
+    # plt.title("Cash Flow Over Time")
+    # plt.legend()
+    # plt.grid(True)
     plt.show()

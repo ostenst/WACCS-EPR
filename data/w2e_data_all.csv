@@ -1,4 +1,4 @@
-﻿City;Plant Name;Fuel (W=waste, B=biomass);Heat output (MWheat);Electric output (MWe);Existing FGC heat output (MWheat);Year of commissioning;Live steam temperature (degC);Live steam pressure (bar)
+﻿City;Name;Fuel (W=waste, B=biomass);Heat output (MWheat);Electric output (MWe);Existing FGC heat output (MWheat);Year of commissioning;Live steam temperature (degC);Live steam pressure (bar)
 Boden;Boden KVV P17;W;15;5;4;2008;400;40
 Boden;Boden KVV P18;W;30;9;9;2008;380;40
 Bollnas;Saverstaverket;W;23;7;5;2011;423;42

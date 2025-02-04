@@ -18,21 +18,21 @@ from ema_workbench import (
 )
 
 # -------------------------------------- Read data and initiate a plant ----------------------------------
-plants_df = pd.read_csv("plant_data_all.csv",delimiter=";")
+plants_df = pd.read_csv("data/w2e_data_all.csv",delimiter=";")
 # plants_df = plants_df.iloc[0].to_frame().T # This row makes us only iterate over the 1st plant
 plants_df = plants_df.iloc[7:9] # This row makes us only iterate over the 4 first plant
 all_experiments = pd.DataFrame()
 all_outcomes = pd.DataFrame()
 
 # Load CHP Aspen data
-aspen_df = pd.read_csv("amine.csv", sep=";", decimal=',')
+aspen_df = pd.read_csv("data/amine.csv", sep=";", decimal=',')
 aspen_interpolators = create_interpolators(aspen_df)
 
 for index, plant_data in plants_df.iterrows():
 
-    print(f"||| MODELLING {plant_data['Plant Name']} WASTE CHP |||")
+    print(f"||| MODELLING {plant_data['Name']} WASTE CHP |||")
     CHP = WASTE_PLANT(
-        name=plant_data["Plant Name"],
+        name=plant_data["Name"],
         fuel=plant_data["Fuel (W=waste, B=biomass)"],
         Qdh=plant_data["Heat output (MWheat)"],
         P=plant_data["Electric output (MWe)"],
@@ -104,7 +104,7 @@ for index, plant_data in plants_df.iterrows():
     plant_experiments = pd.DataFrame(experiments)
     plant_experiments["Name"] = CHP.name
     all_experiments = pd.concat([all_experiments, plant_experiments], ignore_index=True)
-    all_experiments.to_csv("all_experiments.csv", index=False) 
+    all_experiments.to_csv("data/all_experiments.csv", index=False) 
 
     processed_outcomes = {} # Multi-dimensional outcomes need to be put into neat columns
     for k, v in outcomes.items():
@@ -119,7 +119,7 @@ for index, plant_data in plants_df.iterrows():
     plant_outcomes = pd.DataFrame(processed_outcomes)
     plant_outcomes["Name"] = CHP.name
     all_outcomes = pd.concat([all_outcomes, plant_outcomes], ignore_index=True)
-    all_outcomes.to_csv("all_outcomes.csv", index=False)
+    all_outcomes.to_csv("data/all_outcomes.csv", index=False)
 
     if plant_experiments.shape[0] == plant_outcomes.shape[0]:
         if all(plant_experiments.index == plant_outcomes.index):

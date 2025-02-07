@@ -70,11 +70,11 @@ if route_data:
         gpd.GeoSeries(route_geom).plot(ax=ax, linewidth=2, color=color, alpha=0.2)
         
 sc = ax.scatter(
-    bio_plants["Longitude"], bio_plants["Latitude"], linewidths=0,
+    bio_plants["Longitude"], bio_plants["Latitude"], linewidths=1,
     s=bio_plants["Size"], c="mediumseagreen", alpha=0.8, label="Biomass-fired plants"
 )
 sc = ax.scatter(
-    w2e_plants["Longitude"], w2e_plants["Latitude"], linewidths=0,
+    w2e_plants["Longitude"], w2e_plants["Latitude"], linewidths=1,
     s=w2e_plants["Size"], c="grey", alpha=0.8, label="Waste-fired plants"
 )
 

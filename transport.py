@@ -43,9 +43,11 @@ destinations = [
 
 routes = list(product(origins, destinations))
 europe = gpd.read_file("shapefiles/Europe/Europe_merged.shp").to_crs("EPSG:4326")
+sweden = europe[europe["COUNTRY"] == "Sweden"]
 
 fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
 europe.plot(ax=ax, edgecolor="black", facecolor="whitesmoke")  # Plot landmass
+sweden.plot(ax=ax, edgecolor="dodgerblue", facecolor="none", linewidth=1.3)
 
 # Compute route lengths
 route_data = []

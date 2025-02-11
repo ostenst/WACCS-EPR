@@ -360,7 +360,7 @@ class WASTE_PLANT:
         for n in range(0, self.economic_assumptions["t"]):
             electricity_revenue = - self.results["Plost"]* h * self.economic_assumptions["celc"] #[EUR/yr]
             heat_revenue =        - self.results["Qlost"]* h * self.economic_assumptions["cheat"]*self.economic_assumptions["celc"]
-            carbon_revenue = mC*3.67*1000 * self.economic_assumptions["tax"]        
+            carbon_revenue = mC*3.67*1000 * self.economic_assumptions["tax"] # From C to CO2     
             carbon_revenue += self.economic_assumptions["cETS"] * self.gases["captured_emissions"]*1000 * self.technology_assumptions["fossil"] #[EUR/yr] NOTE: half is avoided fossil CO2
             revenues = electricity_revenue + heat_revenue + carbon_revenue
 
@@ -531,6 +531,12 @@ def WACCS_EPR(
 
 
 if __name__ == "__main__":
+    print("Today, roughly 1.2Mt fossil C feedstock is produced, and 1.2Mt is imported, in Sweden. Roughly 1.2Mt is directly exported.")
+    print("Some volume of fossil C is also embedded in imported products. Or, products exported to other countries. We cannot accurately map these flows..?")
+    print("However, roughly 1.4Mt fossil C ends up in waste-to-energy facilities. So today, we could say that produced feedstock C would be adequate to pay for w2e-CCS.")
+    print("We could also say that imported feedstock C should pay - thus roughly covering the biogenic CO2 as well! It makes sense - if it remains in Sweden, it is taken care of by CCS.")
+    print("If it is exported from Sweden (as feedstock or products) it has still paid for biogenic CO2, i.e. negative emissions. So, it's damage is remedied!")
+    print("Consider adding a 'CBAM' for imported products - if we do, we are 'covering' all fossil C!")
 
     # the main function resembles the controller
     plants_df = pd.read_csv("data/w2e_data.csv",delimiter=";")

@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 from geopy.distance import geodesic
+from scipy.interpolate import interp1d
 
 # Preparing data
 w2e_heat = pd.read_csv("data/w2e_data_all.csv", delimiter=";") 
@@ -98,6 +99,8 @@ def assign_origin(row, origins):
     closest_origin = min(distances, key=lambda x: x[1])[0]
     return closest_origin
 plants["Origin"] = plants.apply(assign_origin, origins=origins, axis=1)
+print(plants.head(len(plants)))
+
 sum_captured_by_origin = plants.groupby("Origin")["mean_captured"].sum().reset_index()
 print(sum_captured_by_origin)
 

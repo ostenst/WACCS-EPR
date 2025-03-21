@@ -71,12 +71,31 @@ cmap_density = cm.RdYlGn  # Colormap for density
 # Scatter plot for plants, colored by density
 scatter = ax.scatter(
     plants["Longitude"], plants["Latitude"], linewidths=0,
-    s=plants["Size"]*1.4, c=density_values, cmap=cmap_density, norm=norm_density, alpha=0.8
+    s=plants["Size"]*2.4, c=density_values, cmap=cmap_density, norm=norm_density, alpha=0.8
 )
+
+# CHANGE BELOW FOR WASTE vs BIO
+largest_plant = plants.loc[plants["Size"].idxmax()]
+print(largest_plant["mean_captured"], " ktCO2 emitted by largest plant")
+ax.scatter(
+    4, 67, 
+    s=largest_plant["Size"] * 2.4, 
+    color="black", linewidths=0, alpha=1
+)
+ax.annotate(
+    "500 ktCO2/yr", 
+    (5, 66.6), 
+    textcoords="offset points", xytext=(5, 5), ha='left', fontsize=10, color='black'
+)
+# sysav = plants[plants["Name"] == "Sjolunda 1 "]
+# ax.scatter(
+#     sysav["Longitude"], sysav["Latitude"], linewidths=0,
+#     s=sysav["Size"]*4, c=0.65, cmap=cmap_density, norm=norm_density, alpha=0.8
+# )
 
 # Plot Origins and Destinations
 for origin in origins:
-    ax.scatter(*origin[1:3], color="grey", marker="D", s=45, alpha=1, label="Hubs/Northern Lights" if origin == origins[0] else "")
+    ax.scatter(*origin[1:3], color="grey", marker="D", s=45, alpha=1, label="Hubs/storage" if origin == origins[0] else "")
 for destination in destinations:
     ax.scatter(*destination[1:3], color="grey", marker="D", s=45, alpha=1)
 
@@ -97,6 +116,7 @@ cbar.set_label("Fraction of 'cheap' scenarios (cost < 1700 SEK/tCO2)")
 # Display the legend
 plt.legend()
 ax.text(2.5, 69.78, "Waste-to-energy CCS costs\n2000 scenarios per plant, e.g.:\n7800-8200 h/yr\n20-160 EUR/MWh elec.", fontsize=10, color="grey", ha="left", va="top")
+# ax.text(2.5, 69.78, "Biomass-fired CCS costs\n2000 scenarios per plant, e.g.:\n4000-6000 h/yr\n20-160 EUR/MWh elec.", fontsize=10, color="grey", ha="left", va="top")
 
 plt.savefig("UNNAMED.png", dpi=600, bbox_inches="tight")
 plt.show()

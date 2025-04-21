@@ -111,7 +111,7 @@ ax.set_title("Shipping Routes from Sweden - Plants Colored by Density")
 sm_density = cm.ScalarMappable(cmap=cmap_density, norm=norm_density)
 sm_density.set_array([])  # Dummy array for colorbar
 cbar = fig.colorbar(sm_density, ax=ax, location="right", fraction=0.03, pad=0.02)
-cbar.set_label("Fraction of 'cheap' scenarios (cost < 1700 SEK/tCO2)")
+cbar.set_label("Fraction of 'cheap' scenarios (cost < 3000 SEK/tCO2)")
 
 # Display the legend
 plt.legend()

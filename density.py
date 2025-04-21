@@ -159,15 +159,28 @@ w2e_outcomes['capture_cost'] = w2e_outcomes['capture_cost'] * 11.03 #Convert to 
 w2e_outcomes['total_cost'] = w2e_outcomes['capture_cost']*1.10 + w2e_outcomes['Cost'] + 15*11.03 #Assumed 15 EUR storage cost and that truck transport is 10% of capture cost
 print(w2e_outcomes[['Name', 'Origin', 'Route_Length', 'capture_cost', 'mean_captured', 'Flow', 'Cost', 'total_cost']])
 
+# NOTE: If our aim is PURELY BECCS, then the W2E plants incur additional ETS costs for each biogenic CO2 realized.
+# I therefore add ETS costs of [1000, 1500, 2000, 2500] SEK/tCO2fossil, based on EON feedback.
+ETS = 2500
+ffraction = 0.40
+bfraction = 1-ffraction
+difference = w2e_outcomes['total_cost'] - ETS # The extra cost incurred per fossil tCO2 when trying to realize BECCS.
+difference_total = difference * w2e_outcomes['captured']*ffraction # [SEK/t]*[kt/yr]=[kSEK/yr]
+
+# This difference can be allocated EITHER to all tons of CO2, or to just the biogenic fraction - depends on purpose!
+extra_cost = difference_total / w2e_outcomes['captured'] # [kSEK/yr]/[kt/yr]=[SEK/t], allocated to all
+# extra_cost = difference_total / (w2e_outcomes['captured']*bfraction) # [kSEK/yr]/[kt/yr]=[SEK/t], allocated to biogenic
+w2e_outcomes['total_cost'] = w2e_outcomes['total_cost'] + extra_cost 
+
 # Good. Now it is time to calculate FEATURES relevant for PLOTTING! For example, %density of CRC scenarios
 total_counts_bio = bio_outcomes.groupby('Name').size()
-above_150_counts_bio = bio_outcomes[bio_outcomes['total_cost'] < 1700].groupby('Name').size()
+above_150_counts_bio = bio_outcomes[bio_outcomes['total_cost'] < 3000].groupby('Name').size()
 above_150_counts_bio = above_150_counts_bio.reindex(total_counts_bio.index, fill_value=0)
 
 density_bio = above_150_counts_bio / total_counts_bio
 
 total_counts_w2e = w2e_outcomes.groupby('Name').size()
-above_150_counts_w2e = w2e_outcomes[w2e_outcomes['total_cost'] < 1700].groupby('Name').size()
+above_150_counts_w2e = w2e_outcomes[w2e_outcomes['total_cost'] < 3000].groupby('Name').size()
 above_150_counts_w2e = above_150_counts_w2e.reindex(total_counts_w2e.index, fill_value=0)
 
 density_w2e = above_150_counts_w2e / total_counts_w2e
@@ -196,4 +209,4 @@ axes[1].tick_params(axis='x', rotation=45)
 
 # Adjust layout
 plt.tight_layout()
-plt.show()
+# plt.show()
